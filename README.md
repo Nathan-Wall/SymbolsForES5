@@ -66,3 +66,24 @@ Symbols don't show up in `for...in` loops, `Object.keys`, or `Object.getOwnPrope
 
     Object.getOwnPropertyNames(x); // => [ 'foo' ]
     x[bar]; // => 83
+
+However, it is not possible to delete a Symbol with `delete object[symbol]`. This is the one aspect of Symbols
+which cannot be implemented in ES5. This implementation provides an alternative, `symbol.deleteFrom(object)`.
+To test whether you should delete this way or the standard way (to verify whether this implementation
+or a native one is the one available at runtime), you can check `Symbol.__useDeleteFrom__`. It will be `true`
+if you should use `symbol.deleteFrom` and `undefined` otherwise.
+
+    var x = { };
+    var bar = new Symbol();
+    x[bar] = 8;
+
+    delete x[bar]; // => false
+    x[bar]; // => 8
+
+    if(Symbol.__useDeleteFrom__)
+        bar.deleteFrom(x); // => true
+    else delete x[bar]; // This will be used when your environment natively supports Symbols.
+
+An alternative, if you don't need the fine-grained aspects of `delete`, is to simply set the value to `undefined`,
+which mimicks `delete` in every aspect except when checking `hasOwnProperty`. In most cases, this should be good
+enough, and will be forward compatible with native Symbols when they are available.
