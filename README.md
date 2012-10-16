@@ -27,7 +27,7 @@ Use:
 
     })();
 
-var john = new Person('John', 'Smith');
-john.getFullName(); // => 'John Smith'
+    var john = new Person('John', 'Smith');
+    john.getFullName(); // => 'John Smith'
 
-Object.getOwnPropertyNames(john); // => [ ]
+    Object.getOwnPropertyNames(john); // => [ ]
