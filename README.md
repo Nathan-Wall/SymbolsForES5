@@ -86,5 +86,5 @@ if you should use `symbol.deleteFrom` and `undefined` otherwise.
     else delete x[bar]; // This will be used when your environment natively supports Symbols.
 
 An alternative, if you don't need the fine-grained aspects of `delete`, is to simply set the value to `undefined`,
-which mimicks `delete` in every aspect except when checking `hasOwnProperty`. In most cases, this should be good
+which mimics `delete` in every aspect except when checking `hasOwnProperty`. In most cases, this should be good
 enough, and will be forward compatible with native Symbols when they are available.
