@@ -9,23 +9,23 @@ Should work in any ES5 compliant environment, browser or server.
 Use:
 ----
 
-var Person = (function() {
+    var Person = (function() {
+        
+        var firstName = new Symbol(),
+            lastName = new Symbol();
+
+        function Person(first, last) {
+            this[firstName] = first;
+            this[lastName] = last;
+        }
     
-    var firstName = new Symbol(),
-        lastName = new Symbol();
+        Person.prototype.getFullName = function() {
+            return this[firstName] + ' ' + this[lastName];
+        };
 
-    function Person(first, last) {
-        this[firstName] = first;
-        this[lastName] = last;
-    }
-    
-    Person.prototype.getFullName = function() {
-        return this[firstName] + ' ' + this[lastName];
-    };
+        return Person;
 
-    return Person;
-
-})();
+    })();
 
 var john = new Person('John', 'Smith');
 john.getFullName(); // => 'John Smith'
