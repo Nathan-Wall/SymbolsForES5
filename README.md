@@ -10,7 +10,7 @@ A nice way to go ahead and start working with `Symbol`s before they arrive in br
 work with `Symbol`s once they do arrive in browsers, provided they end up being named `Symbols` and have the same API
 as the current draft.
 
-This file will be updated as the draft progresses.
+This shim will be updated as the draft progresses.
 
 Use:
 ----
