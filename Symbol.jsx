@@ -16,7 +16,10 @@ var Symbol = (function() {
 				var S = Secrets(this);
 				Secrets.prepName(S.get('id'), this.freezable);
 				return Secrets.secretKey;
-			}
+			},
+			enumerable: false,
+			writable: true,
+			configurable: true
 		},
 
 		// We can't simulate "delete obj[symbol]" in ES5. So we'll have to resort to
@@ -24,15 +27,45 @@ var Symbol = (function() {
 		deleteFrom: {
 			value: function(obj) {
 				return Secrets(obj).delete(Secrets(this).get('id'), this.freezable);
-			}
+			},
+			enumerable: false,
+			writable: true,
+			configurable: true
+		},
+
+		// We also can't simulate "symbol in obj" in ES5. So we'll have to resort to
+		// "symbol.isIn(obj)" in this situation.
+		isIn: {
+			value: function(obj) {
+				return Secrets(obj).has(Secrets(this).get('id'));
+			},
+			enumerable: false,
+			writable: true,
+			configurable: true
+		},
+
+		freezable: {
+			value: true,
+			enumerable: false,
+			writable: true,
+			configurable: true
 		}
 
 	});
 
-	Symbol.prototype.freezable = true;
-
-	Object.defineProperty(Symbol, '__useDeleteFrom__', {
-		value: true
+	Object.defineProperties(Symbol, {
+		'__useDeleteFrom__': {
+			value: true,
+			enumerable: false,
+			writable: true,
+			configurable: true
+		},
+		'__useIsIn__': {
+			value: true,
+			enumerable: false,
+			writable: true,
+			configurable: true
+		}
 	});
 
 	return Symbol;
