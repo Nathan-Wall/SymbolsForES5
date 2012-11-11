@@ -1,13 +1,13 @@
-(function() {
+(function(exports) {
 
 	'use strict';
 
-	// If this is not an ES5 environment, we can't do anything.
 	if (
-		/* We'll at least need the following functions.
-		 * While not exhaustive, this should be a good enough list to make sure
-		 * we're in an ES5 environment.
-		 */
+	/* If this is not an ES5 environment, we can't do anything.
+	 * We'll at least need the following functions.
+	 * While not exhaustive, this should be a good enough list to make sure
+	 * we're in an ES5 environment.
+	 */
 		!Object.getOwnPropertyNames
 		|| !Object.getOwnPropertyDescriptor
 		|| !Object.defineProperty
@@ -17,7 +17,7 @@
 		|| !Object.freeze
 		|| !Object.isFrozen
 		|| !Object.isExtensible
-	) return;
+		) return;
 
 	/* Retrieve the global object using an indirect eval.
 	 * This should work in ES5 compliant environments.
@@ -32,4 +32,7 @@
 
 	_global.Symbol = Symbol;
 
-})();
+	if (exports)
+		exports.Secrets = Secrets;
+
+})(typeof _SymbolsForES5_exports == 'undefined' ? undefined : _SymbolsForES5_exports);

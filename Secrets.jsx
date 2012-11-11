@@ -1,12 +1,4 @@
 var Secrets = (function(Object) {
-	// TODO: Correct this comment to say two paths -- now also through new Symbol().toString().
-	/* There is one known path for retrieval of the secretKey: using an iframe's getOwnPropertyNames method.
-	 * Therefore, this implementation has a second layer of protection, the locked variable. The secret map
-	 * may only be retrieved when locked is set to false, and it can only be set internally.
-	 * The overriding of getPropertyNames, etc. should not be considered a security measure (the locked variable
-	 * is the security measure), but instead compatibility measures -- it ensures that scripts which don't expect
-	 * secretKey won't encounter except for in the extreme case of the use of a cross-frame getOwnPropertyNames.
-	 */
 
 	var lazyBind = Function.prototype.bind.bind(Function.prototype.call),
 
@@ -20,7 +12,7 @@ var Secrets = (function(Object) {
 		getOwnPropertyNames = Object.getOwnPropertyNames,
 		getOwnPropertyDescriptor = Object.getOwnPropertyDescriptor,
 		defineProperty = Object.defineProperty,
-		hasOwnProperty = lazyBind(Object.prototype.hasOwnProperty),
+		hasOwn = lazyBind(Object.prototype.hasOwnProperty),
 		push = lazyBind(Array.prototype.push),
 		forEach = lazyBind(Array.prototype.forEach),
 		filter = lazyBind(Array.prototype.filter),
@@ -36,30 +28,29 @@ var Secrets = (function(Object) {
 		// ES Harmony constructors
 		_Proxy = typeof Proxy == 'undefined' ? undefined : Proxy,
 
-		// A property name can be prepped to be exposed when object[secretKey] is accessed.
+		// A property name can be prepped to be exposed when object[SECRET_KEY] is accessed.
 		preppedName,
 		freezable = true,
 
-		// Determines whether object[secretKey] on an object which doesn't have a secretKey property
+		// Determines whether object[SECRET_KEY] on an object which doesn't have a SECRET_KEY property
 		// should define itself. This is turned off when checking the prototype chain.
 		autoDefine = true,
 
-		// Determines whether object[secretKey] should expose the secret map.
+		// Determines whether object[SECRET_KEY] should expose the secret map.
 		locked = true,
 
 		random = getRandomGenerator(),
 		// idNum will ensure identifiers are unique.
 		idNum = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ],
 		preIdentifier = randStr(7) + '0',
-		secretKey = '!S:' + getIdentifier();
+		SECRET_KEY = '!S:' + getIdentifier();
 
 	(function() {
 		// Override get(Own)PropertyNames and get(Own)PropertyDescriptors
 
-		var overrides = {
-			getOwnPropertyNames: getOwnPropertyNames
-		};
+		var overrides = Object.create(null);
 
+		overrides.getOwnPropertyNames = getOwnPropertyNames
 		if (getPropertyNames) overrides.getPropertyNames = getPropertyNames;
 
 		keys(overrides).forEach(function(u) {
@@ -67,7 +58,7 @@ var Secrets = (function(Object) {
 			defineProperty(Object, u, {
 				value: function(obj) {
 					return filter(original.apply(this, arguments), function(u) {
-						return u != secretKey;
+						return u != SECRET_KEY;
 					});
 				},
 				enumerable: false,
@@ -76,7 +67,7 @@ var Secrets = (function(Object) {
 			});
 		});
 
-		overrides = { };
+		overrides = Object.create(null);
 
 		if (getPropertyDescriptors) overrides.getPropertyDescriptors = getPropertyDescriptors;
 		if (getOwnPropertyDescriptors) overrides.getOwnPropertyDescriptors = getOwnPropertyDescriptors;
@@ -86,7 +77,7 @@ var Secrets = (function(Object) {
 			defineProperty(Object, u, {
 				value: function(obj) {
 					var desc = original.apply(this, arguments);
-					if (desc[secretKey]) delete desc[secretKey];
+					delete desc[SECRET_KEY];
 					return desc;
 				},
 				enumerable: false,
@@ -114,14 +105,13 @@ var Secrets = (function(Object) {
 		Proxy = (function() {
 			/* TODO: This works for "direct_proxies", the current ES6 draft; however, some browsers have
 			 * support for an old draft (such as FF 17 and below) which uses Proxy.create(). Should this
-			 * version be overridden to protect against discovery of secretKey on these browsers also?
+			 * version be overridden to protect against discovery of SECRET_KEY on these browsers also?
 			 */
 
-			var trapBypasses = {
-				defineProperty: defineProperty,
-				hasOwn: hasOwnProperty,
-				get: function(target, name) { return target[name]; }
-			};
+			var trapBypasses = Object.create(null);
+			trapBypasses.defineProperty = defineProperty;
+			trapBypasses.hasOwn = hasOwn;
+			trapBypasses.get = function(target, name) { return target[name]; };
 
 			return function Proxy(target, traps) {
 
@@ -135,10 +125,10 @@ var Secrets = (function(Object) {
 				keys(trapBypasses).forEach(function(trapName) {
 					var bypass = trapBypasses[trapName];
 					if (typeof traps[trapName] == 'function') {
-						// Override traps which could discover secretKey.
+						// Override traps which could discover SECRET_KEY.
 						_traps[trapName] = function(target, name) {
-							if (name === secretKey) {
-								// Bypass any user defined trap when name === secretKey.
+							if (name === SECRET_KEY) {
+								// Bypass any user defined trap when name === SECRET_KEY.
 								return bypass.apply(null, arguments);
 							}
 							return traps[trapName].apply(this, arguments);
@@ -166,18 +156,30 @@ var Secrets = (function(Object) {
 	// Allow Symbol properties to be accessed as keys.
 	// Note: this monkey patch prevents Object.prototype from having its own secretMap.
 	// Therefore, Secrets(Object.prototype) will fail.
-	defineProperty(Object.prototype, secretKey, {
+	defineProperty(Object.prototype, SECRET_KEY, {
 
 		get: function() {
-			if(this === Object.prototype) return;
-			var value = Secrets(this, preppedName);
+			if (!autoDefine) return;
+			if (this === Object.prototype) return;
+			if (preppedName === undefined) return;
+			// null and undefined can't have properties and are non-coercible.
+			if (this == null) return;
+			var name = preppedName;
 			preppedName = undefined;
+			autoDefine = false;
+			var value = Secrets(this, name);
+			autoDefine = true;
 			return value;
 		},
 
 		set: function(value) {
+			if (!autoDefine) return;
+			if (this === Object.prototype) return;
+			if (preppedName === undefined) return;
+			// null and undefined can't have properties and are non-coercible.
+			if (this == null) return;
 			Secrets(this);
-			this[secretKey] = value;
+			this[SECRET_KEY] = value;
 		},
 
 		enumerable: false,
@@ -188,23 +190,24 @@ var Secrets = (function(Object) {
 	// Override hasOwnProperty to work with preppedNames.
 	defineProperty(Object.prototype, 'hasOwnProperty', {
 
-		value: function _hasOwnProperty(name) {
+		value: function hasOwnProperty(name) {
 
 			var N = String(name),
 				value;
 
-			if (N == secretKey) {
+			if (N == SECRET_KEY) {
 
 				if (locked) {
 					if (!preppedName) return false;
-					value = Secrets(this).hasOwn(preppedName);
+					var name = preppedName;
 					preppedName = undefined;
+					value = Secrets(this).hasOwn(name);
 					return value;
 				}
 
-				return hasOwnProperty(this, secretKey);
+				return hasOwn(this, SECRET_KEY);
 
-			} else return hasOwnProperty(this, name);
+			} else return hasOwn(this, name);
 
 		},
 
@@ -224,7 +227,7 @@ var Secrets = (function(Object) {
 				throw new TypeError('Can\'t set property; object is frozen or not extensible.');
 
 			locked = false;
-			O[secretKey][name] = value;
+			O[SECRET_KEY][name] = value;
 
 			return value;
 
@@ -237,10 +240,10 @@ var Secrets = (function(Object) {
 			autoDefine = false;
 			do {
 				locked = false;
-				secretMap = O[secretKey];
+				secretMap = O[SECRET_KEY];
 				// We check in case the prototype doesn't have a secret map.
 				secretProp = secretMap && secretMap[name];
-				if (secretProp) {
+				if (secretProp !== undefined) {
 					autoDefine = true;
 					return secretProp;
 				}
@@ -250,7 +253,7 @@ var Secrets = (function(Object) {
 
 		getOwn: function getOwnSecretProperty(O, name) {
 			locked = false;
-			return O[secretKey][name];
+			return O[SECRET_KEY][name];
 		},
 
 		has: function hasSecretProperty(O, name) {
@@ -261,7 +264,7 @@ var Secrets = (function(Object) {
 			autoDefine = false;
 			do {
 				locked = false;
-				secretMap = O[secretKey];
+				secretMap = O[SECRET_KEY];
 				if (secretMap && name in secretMap) {
 					autoDefine = true;
 					return true;
@@ -273,7 +276,7 @@ var Secrets = (function(Object) {
 
 		hasOwn: function hasOwnSecretProperty(O, name) {
 			locked = false;
-			return name in O[secretKey];
+			return name in O[SECRET_KEY];
 		},
 
 		delete: function deleteSecretProperty(O, name, _freezable) {
@@ -281,7 +284,7 @@ var Secrets = (function(Object) {
 			if (!permitChange(this, O, name, true))
 				throw new TypeError('Can\'t delete property from ' + O);
 			locked = false;
-			return delete O[secretKey][name];
+			return delete O[SECRET_KEY][name];
 		}
 
 	};
@@ -301,11 +304,11 @@ var Secrets = (function(Object) {
 		// Note to users of this library:
 		// Consider deleting the following properties if they are not used by the outside.
 
-		secretKey: secretKey,
+		SECRET_KEY: SECRET_KEY,
 
 		prepName: function prepName(name, _freezable) {
 			// Allows one access to Secrets(object).get(preppedName)
-			// via object[secretKey] while in locked mode.
+			// via object[SECRET_KEY] while in locked mode.
 			freezable = _freezable;
 			preppedName = String(name);
 		},
@@ -327,9 +330,10 @@ var Secrets = (function(Object) {
 	function Secrets(O, name) {
 		if(O === Object.prototype) return;
 		if (O !== Object(O)) throw new Error('Not an object: ' + O);
-		if (!hasOwnProperty(O, secretKey)) {
+		if (!hasOwn(O, SECRET_KEY)) {
+			if (!autoDefine) return;
 			if (!isExtensible(O)) return;
-			defineProperty(O, secretKey, {
+			defineProperty(O, SECRET_KEY, {
 
 				get: (function() {
 					var secretMap = create(
@@ -341,11 +345,12 @@ var Secrets = (function(Object) {
 					);
 					return function getSecret() {
 						var value;
-						// The lock protects against retrieval in the event that the secretKey is found.
+						// The lock protects against retrieval in the event that the SECRET_KEY is found.
 						if (locked) {
 							if (!preppedName) return;
-							value = secretMap.Secrets.get(preppedName);
+							var name = preppedName;
 							preppedName = undefined;
+							value = secretMap.Secrets.get(name);
 							return value;
 						}
 						locked = true;
@@ -359,8 +364,9 @@ var Secrets = (function(Object) {
 					if(preppedName === undefined) return;
 					var ret;
 					locked = false;
-					ret = this[secretKey].Secrets.set(preppedName, value);
+					var name = preppedName;
 					preppedName = undefined;
+					ret = this[SECRET_KEY].Secrets.set(name, value);
 					return ret;
 				},
 
@@ -370,8 +376,8 @@ var Secrets = (function(Object) {
 			});
 		}
 		locked = false;
-		if (name) return O[secretKey].Secrets.get(name);
-		return O[secretKey].Secrets;
+		if (name) return O[SECRET_KEY].Secrets.get(name);
+		return O[SECRET_KEY].Secrets;
 	}
 
 	function getIdentifier() {
