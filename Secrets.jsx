@@ -341,6 +341,9 @@ var Secrets = (function(Object, String) {
 	return Secrets;
 
 	function Secrets(O, name) {
+		// Returns undefined if object doesn't already have Secrets and the object is non-extensible. This should
+		// really only happen if an object is passed in from another frame, because in this frame preventExtensions
+		// is overridden to add a Secrets property first.
 		if(O === Object.prototype) return;
 		if (O !== Object(O)) throw new Error('Not an object: ' + O);
 		if (!hasOwn(O, SECRET_KEY)) {
