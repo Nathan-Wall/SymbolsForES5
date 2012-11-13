@@ -23,7 +23,8 @@
 	 * This should work in ES5 compliant environments.
 	 * See: http://perfectionkills.com/global-eval-what-are-the-options/#indirect_eval_call_theory
 	 */
-	var _global = (0, eval)('this');
+	var _global = (0, eval)('this'),
+		undefined;
 
 	// If Symbol is already defined, there's nothing to do.
 	if (_global.Symbol) return;
