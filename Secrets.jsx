@@ -49,7 +49,7 @@ var Secrets = (function(Object) {
 	(function() {
 		// Override get(Own)PropertyNames and get(Own)PropertyDescriptors
 
-		var overrides = Object.create(null);
+		var overrides = create(null);
 
 		overrides.getOwnPropertyNames = getOwnPropertyNames
 		if (getPropertyNames) overrides.getPropertyNames = getPropertyNames;
@@ -68,7 +68,7 @@ var Secrets = (function(Object) {
 			});
 		});
 
-		overrides = Object.create(null);
+		overrides = create(null);
 
 		if (getPropertyDescriptors) overrides.getPropertyDescriptors = getPropertyDescriptors;
 		if (getOwnPropertyDescriptors) overrides.getOwnPropertyDescriptors = getOwnPropertyDescriptors;
@@ -109,7 +109,7 @@ var Secrets = (function(Object) {
 			 * version be overridden to protect against discovery of SECRET_KEY on these browsers also?
 			 */
 
-			var trapBypasses = Object.create(null);
+			var trapBypasses = create(null);
 			trapBypasses.defineProperty = defineProperty;
 			trapBypasses.hasOwn = hasOwn;
 			trapBypasses.get = function(target, name) { return target[name]; };
@@ -454,7 +454,7 @@ var Secrets = (function(Object) {
 	}
 
 	function preloadMethods(methods, arg) {
-		var bound = Object.create(null);
+		var bound = create(null);
 		keys(methods).forEach(function(method) {
 			bound[method] = methods[method].bind(bound, arg);
 		});
