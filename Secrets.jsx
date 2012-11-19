@@ -1,5 +1,4 @@
-var Secrets = (function(Object) {
-	// TODO: Override Object.create so that it returns an object which works with Symbols (it currently doesn't work because Symbols are set up to work with objects which inherit from Object.prototype).
+var Secrets = (function(Object, String) {
 
 	var lazyBind = Function.prototype.bind.bind(Function.prototype.call),
 
@@ -45,6 +44,19 @@ var Secrets = (function(Object) {
 		idNum = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ],
 		preIdentifier = randStr(7) + '0',
 		SECRET_KEY = '!S:' + getIdentifier();
+
+	// Override Object.create to add Secrets to any object created with it. It is necessary to add Secrets to any
+	// object created with Object.create(null) since it won't inherit from Object.prototype, so Symbols would fail
+	// if we didn't go ahead and add Secrets to it. It's not technically necessary to add Secrets to all objects;
+	// we could just add Secrets to objects where value === null here. However, we go ahead anyway since it protects
+	// against cases where, for example, someone might use a different frame's Object.freeze to freeze an object
+	// created with this frame's Object.create. It's not foolproof, and it's a case that will probably never occur
+	// in practice, but since we can catch it here, we go ahead and prevent the possibility.
+	Object.create = function(value, props) {
+		var obj = create.apply(this, arguments);
+		Secrets(obj);
+		return obj;
+	};
 
 	(function() {
 		// Override get(Own)PropertyNames and get(Own)PropertyDescriptors
@@ -293,7 +305,7 @@ var Secrets = (function(Object) {
 	defineProperty(Secrets, 'version', {
 		value: freeze({
 			major: 1,
-			minor: 1,
+			minor: 3,
 			revision: 0,
 			alpha: true
 		}),
@@ -334,15 +346,15 @@ var Secrets = (function(Object) {
 		if (!hasOwn(O, SECRET_KEY)) {
 			if (!autoDefine) return;
 			if (!isExtensible(O)) return;
-			defineProperty(O, SECRET_KEY, {
+			defineProperty(O, SECRET_KEY, own({
 
 				get: (function() {
 					var secretMap = create(
 						// Prevent the secret map from having a prototype chain.
 						null,
-						{
+						own({
 							Secrets: { value: preloadMethods(methods, O) }
-						}
+						})
 					);
 					return function getSecret() {
 						var value;
@@ -374,7 +386,7 @@ var Secrets = (function(Object) {
 				enumerable: false,
 				configurable: false
 
-			});
+			}));
 		}
 		locked = false;
 		if (name) return O[SECRET_KEY].Secrets.get(name);
@@ -388,10 +400,11 @@ var Secrets = (function(Object) {
 			if (idNum[i] > range) {
 				idNum[i] = 0;
 				if (i < idNum.length) idNum[i + 1]++;
-				else idNum = idNum.map(function() { return 0; });
+				else idNum = idNum.map(function() { return 0; }); // TODO: Use lazyBound map
 			}
 			idS += encodeStr(idNum[i]);
 		}
+		// TODO: Use a lazyBound join rather than using it as a method.
 		return preIdentifier + ':' + getRandStrs(8, 11).join('/') + ':' + idS;
 	}
 
@@ -436,7 +449,7 @@ var Secrets = (function(Object) {
 		if (getRandomValues) {
 			// Firefox (15 & 16) seems to be throwing a weird "not implemented" error on getRandomValues.
 			// Not sure why?
-			try { getRandomValues(new UIntArray(4)); }
+			try { getRandomValues(new Uint8Array(4)); }
 			catch(x) { getRandomValues = undefined }
 		}
 		if (typeof getRandomValues == 'function' && typeof Uint8Array == 'function') {
@@ -455,6 +468,7 @@ var Secrets = (function(Object) {
 
 	function preloadMethods(methods, arg) {
 		var bound = create(null);
+		// TODO: Use lazyBound forEach
 		keys(methods).forEach(function(method) {
 			bound[method] = methods[method].bind(bound, arg);
 		});
@@ -467,5 +481,18 @@ var Secrets = (function(Object) {
 		});
 	}
 
-// We pass in Object to ensure that it cannot be changed later to something else.
-})(Object);
+	function own(obj) {
+
+		var O = Object.create(null);
+
+		getOwnPropertyNames(obj).forEach(function(key) {
+			defineProperty(O,
+				getOwnPropertyDescriptor(obj, key));
+		});
+
+		return O;
+
+	}
+
+// We pass in Object and String to ensure that they cannot be changed later to something else.
+})(Object, String);
