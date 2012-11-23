@@ -1,5 +1,8 @@
 var Secrets = (function(Object, String) {
 
+	// We capture the built-in functions and methods as they are now and store them as references so that we can
+	// maintain some integrity. This is done to prevent scripts which run later from mischievously trying to get
+	// details about or alter the secrets stored on an object.
 	var lazyBind = Function.prototype.bind.bind(Function.prototype.call),
 
 		// ES5 functions
@@ -15,8 +18,12 @@ var Secrets = (function(Object, String) {
 		hasOwn = lazyBind(Object.prototype.hasOwnProperty),
 		push = lazyBind(Array.prototype.push),
 		forEach = lazyBind(Array.prototype.forEach),
+		map = lazyBind(Array.prototype.map),
 		filter = lazyBind(Array.prototype.filter),
+		join = lazyBind(Array.prototype.join),
 		fromCharCode = String.fromCharCode,
+		apply = lazyBind(Function.prototype.apply),
+		bind = lazyBind(Function.prototype.bind),
 
 		// ES Harmony functions
 		getPropertyNames = Object.getPropertyNames,
@@ -53,7 +60,7 @@ var Secrets = (function(Object, String) {
 	// created with this frame's Object.create. It's not foolproof, and it's a case that will probably never occur
 	// in practice, but since we can catch it here, we go ahead and prevent the possibility.
 	Object.create = function(value, props) {
-		var obj = create.apply(this, arguments);
+		var obj = apply(create, this, arguments);
 		Secrets(obj);
 		return obj;
 	};
@@ -70,7 +77,7 @@ var Secrets = (function(Object, String) {
 			var original = overrides[u];
 			defineProperty(Object, u, {
 				value: function(obj) {
-					return filter(original.apply(this, arguments), function(u) {
+					return filter(apply(original, this, arguments), function(u) {
 						return u != SECRET_KEY;
 					});
 				},
@@ -89,7 +96,7 @@ var Secrets = (function(Object, String) {
 			var original = overrides[u];
 			defineProperty(Object, u, {
 				value: function(obj) {
-					var desc = original.apply(this, arguments);
+					var desc = apply(original, this, arguments);
 					delete desc[SECRET_KEY];
 					return desc;
 				},
@@ -108,7 +115,7 @@ var Secrets = (function(Object, String) {
 			value: function(obj) {
 				// Define the secret map.
 				Secrets(obj);
-				return original.apply(this, arguments);
+				return apply(original, this, arguments);
 			}
 		});
 	});
@@ -135,16 +142,16 @@ var Secrets = (function(Object, String) {
 
 				var _traps = create(traps);
 
-				keys(trapBypasses).forEach(function(trapName) {
+				forEach(keys(trapBypasses), function(trapName) {
 					var bypass = trapBypasses[trapName];
 					if (typeof traps[trapName] == 'function') {
 						// Override traps which could discover SECRET_KEY.
 						_traps[trapName] = function(target, name) {
 							if (name === SECRET_KEY) {
 								// Bypass any user defined trap when name === SECRET_KEY.
-								return bypass.apply(null, arguments);
+								return apply(bypass, null, arguments);
 							}
-							return traps[trapName].apply(this, arguments);
+							return apply(traps[trapName], this, arguments);
 						};
 					}
 				});
@@ -212,9 +219,9 @@ var Secrets = (function(Object, String) {
 
 				if (locked) {
 					if (!preppedName) return false;
-					var name = preppedName;
+					var _name = preppedName;
 					preppedName = undefined;
-					value = Secrets(this).hasOwn(name);
+					value = Secrets(this).hasOwn(_name);
 					return value;
 				}
 
@@ -403,12 +410,11 @@ var Secrets = (function(Object, String) {
 			if (idNum[i] > range) {
 				idNum[i] = 0;
 				if (i < idNum.length) idNum[i + 1]++;
-				else idNum = idNum.map(function() { return 0; }); // TODO: Use lazyBound map
+				else idNum = map(idNum, function() { return 0; });
 			}
 			idS += encodeStr(idNum[i]);
 		}
-		// TODO: Use a lazyBound join rather than using it as a method.
-		return preIdentifier + ':' + getRandStrs(8, 11).join('/') + ':' + idS;
+		return preIdentifier + ':' + join(getRandStrs(8, 11), '/') + ':' + idS;
 	}
 
 	function permitChange(methods, O, name, checkExtensible) {
@@ -471,9 +477,8 @@ var Secrets = (function(Object, String) {
 
 	function preloadMethods(methods, arg) {
 		var bound = create(null);
-		// TODO: Use lazyBound forEach
-		keys(methods).forEach(function(method) {
-			bound[method] = methods[method].bind(bound, arg);
+		forEach(keys(methods), function(method) {
+			bound[method] = bind(methods[method], bound, arg);
 		});
 		return bound;
 	}
@@ -486,10 +491,10 @@ var Secrets = (function(Object, String) {
 
 	function own(obj) {
 
-		var O = Object.create(null);
+		var O = create(null);
 
-		getOwnPropertyNames(obj).forEach(function(key) {
-			defineProperty(O,
+		forEach(getOwnPropertyNames(obj), function(key) {
+			defineProperty(O, key,
 				getOwnPropertyDescriptor(obj, key));
 		});
 
