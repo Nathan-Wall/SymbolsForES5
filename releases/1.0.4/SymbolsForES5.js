@@ -1,4 +1,35 @@
-var Secrets = (function(Object, String) {
+(function(exports) {
+
+	'use strict';
+
+	if (
+	/* If this is not an ES5 environment, we can't do anything.
+	 * We'll at least need the following functions.
+	 * While not exhaustive, this should be a good enough list to make sure
+	 * we're in an ES5 environment.
+	 */
+		!Object.getOwnPropertyNames
+		|| !Object.getOwnPropertyDescriptor
+		|| !Object.defineProperty
+		|| !Object.defineProperties
+		|| !Object.keys
+		|| !Object.create
+		|| !Object.freeze
+		|| !Object.isFrozen
+		|| !Object.isExtensible
+		) return;
+
+	/* Retrieve the global object using an indirect eval.
+	 * This should work in ES5 compliant environments.
+	 * See: http://perfectionkills.com/global-eval-what-are-the-options/#indirect_eval_call_theory
+	 */
+	var _global = (0, eval)('this'),
+		undefined;
+
+	// If Symbol is already defined, there's nothing to do.
+	if (_global.Symbol) return;
+
+	var Secrets = (function(Object, String) {
 
 	// We capture the built-in functions and methods as they are now and store them as references so that we can
 	// maintain some integrity. This is done to prevent scripts which run later from mischievously trying to get
@@ -486,3 +517,88 @@ var Secrets = (function(Object, String) {
 
 // We pass in Object and String to ensure that they cannot be changed later to something else.
 })(Object, String);
+
+var Symbol = (function() {
+
+	function Symbol(/* params */) {
+		// TODO: I think some of the code that's intended to make Symbol work should be pulled
+		// out of Secrets and put here instead ... such as the Object.prototype[SECRET_KEY] getter
+		// and the handling of freezable.
+
+		Secrets(this).set('id', '!Y:' + Secrets.getIdentifier());
+
+	}
+
+	Object.defineProperties(Symbol.prototype, {
+
+		toString: {
+			value: function() {
+				var S = Secrets(this);
+				Secrets.prepName(S.get('id'), this.freezable);
+				return Secrets.SECRET_KEY;
+			},
+			enumerable: false,
+			writable: true,
+			configurable: true
+		},
+
+		// We can't simulate "delete obj[symbol]" in ES5. So we'll have to resort to
+		// "symbol.deleteFrom(obj)" in this situation.
+		deleteFrom: {
+			value: function(obj) {
+				var S = Secrets(obj), T = Secrets(this);
+				if (!S || !T) return false;
+				return S.delete(T.get('id'), this.freezable);
+			},
+			enumerable: false,
+			writable: true,
+			configurable: true
+		},
+
+		// We also can't simulate "symbol in obj" in ES5. So we'll have to resort to
+		// "symbol.isIn(obj)" in this situation.
+		isIn: {
+			value: function(obj) {
+				var S = Secrets(obj), T = Secrets(this);
+				if (!S || !T) return false;
+				return S.has(T.get('id'));
+			},
+			enumerable: false,
+			writable: true,
+			configurable: true
+		},
+
+		freezable: {
+			value: true,
+			enumerable: false,
+			writable: true,
+			configurable: true
+		}
+
+	});
+
+	Object.defineProperties(Symbol, {
+		'__useDeleteFrom__': {
+			value: true,
+			enumerable: false,
+			writable: true,
+			configurable: true
+		},
+		'__useIsIn__': {
+			value: true,
+			enumerable: false,
+			writable: true,
+			configurable: true
+		}
+	});
+
+	return Symbol;
+
+})();
+
+	_global.Symbol = Symbol;
+
+	if (exports)
+		exports.Secrets = Secrets;
+
+})(typeof _SymbolsForES5_exports == 'undefined' ? undefined : _SymbolsForES5_exports);
