@@ -37,6 +37,11 @@ var Secrets = (function(Object, String) {
 
 		// A property name can be prepped to be exposed when object[SECRET_KEY] is accessed.
 		preppedName,
+		// Note: freezable is an old proprety on Symbol that was passed in as a variable. It has been
+		// removed from Symbol due to it not being needed anymore and its non-standardness. I'm leaving
+		// the freezable logic in Secrets for now just in case we decide to go back to making Symbols
+		// non-freezable. There's really no loss in having this unused logic here. However, after time
+		// it may be good to remove freezable as an option once and for all.
 		freezable = true,
 
 		// Determines whether object[SECRET_KEY] on an object which doesn't have a SECRET_KEY property
