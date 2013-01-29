@@ -1,6 +1,8 @@
 SymbolsForES5
 =============
 
+#### Note: This script has been superseded by [Secrets](https://github.com/Nathan-Wall/Secrets) (for the time being).
+
 Provides ECMAScript Harmony `Symbol`s (Private Names) for ECMAScript 5.
 
 This shim will check to see if the Symbol constructor already exists globally, and if not it will add it.
